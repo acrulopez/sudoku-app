@@ -7,6 +7,7 @@ import type { Difficulty } from '../../domain/types';
 import { useGameStore } from '../../state/gameStore';
 import { useTheme } from '../theme/ThemeProvider';
 import { ThemePicker } from '../components/ThemePicker/ThemePicker';
+import { GameSettings } from '../components/Settings/GameSettings';
 
 const LABELS: Record<Difficulty, string> = {
   easy: 'Easy',
@@ -65,6 +66,10 @@ export function HomeScreen() {
             <Text style={[styles.chevron, { color: c.textMuted }]}>›</Text>
           </Pressable>
         ))}
+      </View>
+
+      <View style={styles.themeWrap}>
+        <GameSettings />
       </View>
 
       <View style={styles.themeWrap}>

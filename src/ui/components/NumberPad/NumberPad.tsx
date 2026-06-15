@@ -17,10 +17,12 @@ interface Props {
   activeDigit: Digit | null;
   /** Transient signal of a rejected pencil note: the digit flickers red. */
   invalidFlash: { digit: Digit; nonce: number } | null;
+  /** OS "Reduce Motion" is on — skip the rejection flicker. */
+  reduceMotion: boolean;
   onPress: (digit: Digit) => void;
 }
 
-export function NumberPad({ remaining, activeDigit, invalidFlash, onPress }: Props) {
+export function NumberPad({ remaining, activeDigit, invalidFlash, reduceMotion, onPress }: Props) {
   const theme = useTheme();
   const c = theme.colors;
 
@@ -43,6 +45,11 @@ export function NumberPad({ remaining, activeDigit, invalidFlash, onPress }: Pro
             disabled={done}
             onPress={() => onPress(d)}
             style={styles.button}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active, disabled: done }}
+            accessibilityLabel={
+              done ? `${d}, all placed` : `${d}, ${remaining[d]} remaining`
+            }
           >
             <FlickerDigit
               digit={d}
@@ -50,6 +57,7 @@ export function NumberPad({ remaining, activeDigit, invalidFlash, onPress }: Pro
               errorColor={c.error}
               done={done}
               flash={invalidFlash}
+              reduceMotion={reduceMotion}
             />
             {!done && (
               <Text style={[styles.count, { color: c.textMuted }]}>{remaining[d]}</Text>
@@ -67,13 +75,14 @@ interface FlickerProps {
   errorColor: string;
   done: boolean;
   flash: { digit: Digit; nonce: number } | null;
+  reduceMotion: boolean;
 }
 
-function FlickerDigit({ digit, normalColor, errorColor, done, flash }: FlickerProps) {
+function FlickerDigit({ digit, normalColor, errorColor, done, flash, reduceMotion }: FlickerProps) {
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (!flash || flash.digit !== digit) return;
+    if (!flash || flash.digit !== digit || reduceMotion) return;
     progress.value = withSequence(
       withTiming(1, { duration: 110 }),
       withTiming(0, { duration: 110 }),
@@ -81,7 +90,7 @@ function FlickerDigit({ digit, normalColor, errorColor, done, flash }: FlickerPr
       withTiming(0, { duration: 110 }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flash?.nonce]);
+  }, [flash?.nonce, reduceMotion]);
 
   const animStyle = useAnimatedStyle(() => ({
     color: interpolateColor(progress.value, [0, 1], [normalColor, errorColor]),
@@ -100,7 +109,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 4,
   },
-  button: { flex: 1, alignItems: 'center', paddingVertical: 6 },
+  button: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, minHeight: 48 },
   digit: { fontSize: 34, fontWeight: '400' },
   faded: { opacity: 0.35 },
   count: { fontSize: 12, marginTop: -2 },

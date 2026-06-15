@@ -41,18 +41,32 @@ export function GameHeader({
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Pressable onPress={onBack} hitSlop={10}>
+        <Pressable
+          onPress={onBack}
+          hitSlop={16}
+          accessibilityRole="button"
+          accessibilityLabel="Back to menu"
+        >
           <Text style={[styles.back, { color: c.text }]}>←</Text>
         </Pressable>
       </View>
       <View style={styles.statsRow}>
-        <Text style={[styles.stat, { color: c.textMuted }]}>
+        <Text
+          style={[styles.stat, { color: c.textMuted }]}
+          accessibilityLabel={`Mistakes ${mistakes}${maxMistakes > 0 ? ` of ${maxMistakes}` : ''}`}
+        >
           Mistakes: {mistakes}
           {maxMistakes > 0 ? `/${maxMistakes}` : ''}
         </Text>
         <Text style={[styles.stat, { color: c.textMuted }]}>{LABELS[difficulty]}</Text>
-        <Pressable onPress={onTogglePause} style={styles.timer}>
-          <Text style={[styles.stat, { color: c.textMuted }]}>
+        <Pressable
+          onPress={onTogglePause}
+          style={styles.timer}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={`Time ${formatTime(elapsed)}. ${paused ? 'Paused, tap to resume' : 'Tap to pause'}`}
+        >
+          <Text style={[styles.stat, { color: c.textMuted }]} accessibilityElementsHidden importantForAccessibility="no">
             {formatTime(elapsed)} {paused ? '▶' : '❚❚'}
           </Text>
         </Pressable>

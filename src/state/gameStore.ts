@@ -53,6 +53,8 @@ interface GameState {
 
   // lifecycle
   newGame: (difficulty: Difficulty) => void;
+  /** Replay the current puzzle from its givens (used after a loss). */
+  restartGame: () => void;
   resumeSavedGame: () => boolean;
   hasSavedGame: () => boolean;
 
@@ -122,6 +124,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       fastMode: useSettingsStore.getState().fastModeDefault,
       mistakes: 0,
       elapsed: 0,
+    });
+    emit({ type: 'game_started', difficulty, puzzleId: puzzle.id, at: Date.now() });
+    persist(get);
+  },
+
+  restartGame: () => {
+    const { puzzle, difficulty } = get();
+    if (!puzzle) return;
+    set({
+      status: 'playing',
+      board: boardFromPuzzle(puzzle),
+      history: createHistory(),
+      selectedIndex: null,
+      selectedDigit: null,
+      pencilMode: false,
+      fastMode: useSettingsStore.getState().fastModeDefault,
+      mistakes: 0,
+      elapsed: 0,
+      invalidFlash: null,
+      flashCells: null,
     });
     emit({ type: 'game_started', difficulty, puzzleId: puzzle.id, at: Date.now() });
     persist(get);

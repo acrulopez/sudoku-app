@@ -18,6 +18,7 @@ interface SettingsState {
   setThemeKey: (key: string) => void;
   setFastModeDefault: (v: boolean) => void;
   setValidateNotes: (v: boolean) => void;
+  setMaxMistakes: (v: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -31,6 +32,7 @@ export const useSettingsStore = create<SettingsState>()(
       setThemeKey: (themeKey) => set({ themeKey }),
       setFastModeDefault: (fastModeDefault) => set({ fastModeDefault }),
       setValidateNotes: (validateNotes) => set({ validateNotes }),
+      setMaxMistakes: (maxMistakes) => set({ maxMistakes }),
     }),
     {
       name: 'settings',

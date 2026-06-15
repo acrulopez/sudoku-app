@@ -16,6 +16,8 @@ interface Props {
   fastMode: boolean;
   /** Cells to blink red twice (conflict feedback). */
   flashCells: { indices: CellIndex[]; nonce: number } | null;
+  /** OS "Reduce Motion" is on — cells skip the conflict blink. */
+  reduceMotion: boolean;
   onCellPress: (index: CellIndex) => void;
 }
 
@@ -26,6 +28,7 @@ export function Board({
   mistakes,
   fastMode,
   flashCells,
+  reduceMotion,
   onCellPress,
 }: Props) {
   const theme = useTheme();
@@ -54,6 +57,7 @@ export function Board({
                 fastMode={fastMode}
                 mistake={mistakes.has(index)}
                 flashNonce={flashNonce}
+                reduceMotion={reduceMotion}
                 onPress={onCellPress}
               />
             );

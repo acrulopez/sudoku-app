@@ -123,9 +123,6 @@ const sunset: Theme = {
   },
 };
 
-/** Fast Mode accent — always blue, independent of the active theme palette. */
-export const FAST_MODE_ACCENT = '#2F6BFF';
-
 export const THEMES: Theme[] = [light, dark, forest, sunset];
 
 export const DEFAULT_THEME_KEY = light.key;

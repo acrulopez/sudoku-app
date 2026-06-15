@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -8,8 +9,8 @@ import { useGameStore } from '../../state/gameStore';
 import { useSettingsStore } from '../../state/settingsStore';
 import { computeMistakes, remainingCounts } from '../../state/selectors';
 import { useGameTimer } from '../hooks/useGameTimer';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 import { useTheme } from '../theme/ThemeProvider';
-import { FAST_MODE_ACCENT } from '../theme/themes';
 import { Board } from '../components/Board/Board';
 import { Controls } from '../components/Controls/Controls';
 import { GameHeader } from '../components/Header/GameHeader';
@@ -20,6 +21,7 @@ export function GameScreen() {
   const theme = useTheme();
   const c = theme.colors;
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   useGameTimer();
 
   const s = useGameStore();
@@ -39,11 +41,20 @@ export function GameScreen() {
     prevMistakes.current = s.mistakes;
   }, [s.mistakes]);
 
+  // The one earned celebration: a success tap when the puzzle is solved.
+  const prevStatus = useRef(s.status);
+  useEffect(() => {
+    if (s.status === 'won' && prevStatus.current !== 'won') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+    prevStatus.current = s.status;
+  }, [s.status]);
+
   if (!s.puzzle) {
     // No active game (e.g. deep link) — bounce home.
     return (
       <View style={[styles.flex, styles.center, { backgroundColor: c.background }]}>
-        <Pressable onPress={() => router.replace('/')}>
+        <Pressable onPress={() => router.replace('/')} accessibilityRole="button">
           <Text style={{ color: c.primary, fontSize: 16 }}>Back to menu</Text>
         </Pressable>
       </View>
@@ -51,11 +62,10 @@ export function GameScreen() {
   }
 
   const paused = s.status === 'paused';
+  const gameOver = s.status === 'won' || s.status === 'lost';
   const remaining = remainingCounts(s.board);
   const activeValue =
     s.selectedDigit ?? (s.selectedIndex !== null ? s.board[s.selectedIndex].value : null);
-
-  const overlayText = s.status === 'won' ? 'Solved! 🎉' : s.status === 'lost' ? 'Out of mistakes' : null;
 
   return (
     <View
@@ -79,10 +89,13 @@ export function GameScreen() {
           <Pressable
             onPress={() => s.setPaused(false)}
             style={[styles.pausedBox, { backgroundColor: c.surface, borderColor: c.gridLine }]}
+            accessibilityRole="button"
+            accessibilityLabel="Paused. Tap to resume."
           >
             <Text style={{ color: c.textMuted, fontSize: 18 }}>Paused — tap to resume</Text>
           </Pressable>
         ) : (
+          // The completed board stays fully visible — the result sits below it.
           <Board
             board={s.board}
             selectedIndex={s.selectedIndex}
@@ -90,53 +103,74 @@ export function GameScreen() {
             mistakes={mistakes}
             fastMode={s.fastMode}
             flashCells={s.flashCells}
+            reduceMotion={reduceMotion}
             onCellPress={s.selectCell}
           />
         )}
-
-        {overlayText && (
-          <View style={[styles.overlay, { backgroundColor: c.surface, borderColor: c.gridLine }]}>
-            <Text style={[styles.overlayText, { color: c.text }]}>{overlayText}</Text>
-            <Pressable
-              onPress={() => router.replace('/')}
-              style={[styles.overlayBtn, { backgroundColor: c.primary }]}
-            >
-              <Text style={styles.overlayBtnText}>New game</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.fastModeRow}>
-        <Text style={[styles.fastIcon, { color: s.fastMode ? FAST_MODE_ACCENT : c.textMuted }]}>
-          ⚡
-        </Text>
-        <View style={styles.switchScale}>
-          <Switch
-            value={s.fastMode}
-            onValueChange={s.toggleFastMode}
-            trackColor={{ true: FAST_MODE_ACCENT, false: c.gridLine }}
-            thumbColor="#FFFFFF"
-            ios_backgroundColor={c.gridLine}
-          />
-        </View>
       </View>
 
       <View style={styles.bottom}>
-        <Controls
-          pencilMode={s.pencilMode}
-          canUndo={historyCanUndo(s.history)}
-          onUndo={s.undo}
-          onErase={s.erase}
-          onFastPencil={s.fastPencil}
-          onTogglePencil={s.togglePencil}
-        />
-        <NumberPad
-          remaining={remaining}
-          activeDigit={s.selectedDigit}
-          invalidFlash={s.invalidFlash}
-          onPress={s.pressDigit}
-        />
+        {gameOver ? (
+          <Animated.View
+            entering={reduceMotion ? undefined : FadeIn.duration(220)}
+            style={[styles.result, { backgroundColor: c.surface, borderColor: c.gridLine }]}
+            accessibilityLiveRegion="polite"
+          >
+            <Text style={[styles.resultText, { color: c.text }]}>
+              {s.status === 'won' ? 'Solved! 🎉' : 'Out of mistakes'}
+            </Text>
+            <View style={styles.resultActions}>
+              {s.status === 'lost' && (
+                <Pressable
+                  onPress={s.restartGame}
+                  style={[styles.btnPrimary, { backgroundColor: c.primary }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try this puzzle again"
+                >
+                  <Text style={styles.btnPrimaryText}>Try again</Text>
+                </Pressable>
+              )}
+              {s.status === 'won' && (
+                <Pressable
+                  onPress={() => s.newGame(s.difficulty)}
+                  style={[styles.btnPrimary, { backgroundColor: c.primary }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Start a new puzzle"
+                >
+                  <Text style={styles.btnPrimaryText}>New game</Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => router.replace('/')}
+                style={[styles.btnSecondary, { borderColor: c.gridLine }]}
+                accessibilityRole="button"
+                accessibilityLabel="Back to menu"
+              >
+                <Text style={[styles.btnSecondaryText, { color: c.text }]}>Menu</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        ) : (
+          <>
+            <Controls
+              pencilMode={s.pencilMode}
+              fastMode={s.fastMode}
+              canUndo={historyCanUndo(s.history)}
+              onUndo={s.undo}
+              onErase={s.erase}
+              onFastPencil={s.fastPencil}
+              onTogglePencil={s.togglePencil}
+              onToggleFastMode={s.toggleFastMode}
+            />
+            <NumberPad
+              remaining={remaining}
+              activeDigit={s.selectedDigit}
+              invalidFlash={s.invalidFlash}
+              reduceMotion={reduceMotion}
+              onPress={s.pressDigit}
+            />
+          </>
+        )}
       </View>
 
       <View style={styles.spacer} />
@@ -156,32 +190,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    margin: 8,
+  bottom: { paddingHorizontal: 8, paddingTop: 16 },
+  result: {
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     gap: 16,
   },
-  overlayText: { fontSize: 28, fontWeight: '800' },
-  overlayBtn: { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
-  overlayBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  fastModeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    paddingHorizontal: 12,
-    marginTop: 10,
+  resultText: { fontSize: 28, fontWeight: '800' },
+  resultActions: { flexDirection: 'row', gap: 12 },
+  btnPrimary: { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
+  btnPrimaryText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  btnSecondary: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
   },
-  fastIcon: { fontSize: 15, fontWeight: '700' },
-  switchScale: { transform: [{ scale: 0.75 }] },
-  bottom: { paddingHorizontal: 8, paddingBottom: 8 },
+  btnSecondaryText: { fontSize: 16, fontWeight: '600' },
   spacer: { flex: 1 },
 });
