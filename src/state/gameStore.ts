@@ -16,6 +16,7 @@ import {
   placeValue,
   toggleNote,
 } from '../domain/engine';
+import { getPeers, isValidPlacement } from '../domain/rules';
 import {
   canUndo,
   createHistory,
@@ -43,6 +44,12 @@ interface GameState {
   fastMode: boolean;
   mistakes: number;
   elapsed: number;
+  /** Transient signal: a rejected (illegal) pencil note. `nonce` bumps each
+   *  attempt so the UI re-triggers its flicker even for the same digit. */
+  invalidFlash: { digit: Digit; nonce: number } | null;
+  /** Transient signal: board cells that should blink red twice — the peers
+   *  whose value conflicts with a just-placed wrong digit or an illegal note. */
+  flashCells: { indices: CellIndex[]; nonce: number } | null;
 
   // lifecycle
   newGame: (difficulty: Difficulty) => void;
@@ -95,6 +102,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   fastMode: false,
   mistakes: 0,
   elapsed: 0,
+  invalidFlash: null,
+  flashCells: null,
 
   newGame: (difficulty) => {
     const repos = getRepositories();
@@ -221,17 +230,40 @@ function applyDigit(
   if (!puzzle) return;
   const validate = useSettingsStore.getState().validateNotes;
 
+  // A correct placement lets us auto-strip the now-impossible peer notes.
+  const correct = !!puzzle.solution && puzzle.solution[index] === String(digit);
+
   const res = pencilMode
     ? toggleNote(board, index, digit, validate)
-    : placeValue(board, index, digit);
-  if (!res) return;
+    : placeValue(board, index, digit, correct);
+  if (!res) {
+    // A rejected pencil note on an editable cell means the digit is illegal
+    // here (a peer already holds it) — flicker the pad digit and blink the
+    // peers that hold that digit (the reason it's illegal).
+    if (pencilMode) {
+      const cell = board[index];
+      if (!cell.given && cell.value === null && !isValidPlacement(board, index, digit)) {
+        const culprits = [...getPeers(index)].filter((p) => board[p].value === digit);
+        set({
+          invalidFlash: { digit, nonce: (get().invalidFlash?.nonce ?? 0) + 1 },
+          flashCells: { indices: culprits, nonce: (get().flashCells?.nonce ?? 0) + 1 },
+        });
+      }
+    }
+    return;
+  }
 
   let nextMistakes = mistakes;
   let status: GameStatus = get().status;
+  let flashCells = get().flashCells;
 
   if (!pencilMode && res.board[index].value !== null) {
-    const correct =
-      puzzle.solution && puzzle.solution[index] === String(digit);
+    // Blink the peers that already hold this digit (a same-row/col/box clash).
+    const clashes = [...getPeers(index)].filter((p) => res.board[p].value === digit);
+    if (clashes.length) {
+      flashCells = { indices: clashes, nonce: (get().flashCells?.nonce ?? 0) + 1 };
+    }
+
     if (puzzle.solution && !correct) {
       nextMistakes = mistakes + 1;
       emit({ type: 'mistake_made', difficulty: get().difficulty, at: Date.now() });
@@ -258,6 +290,7 @@ function applyDigit(
     history: pushMove(history, res.move),
     mistakes: nextMistakes,
     status,
+    flashCells,
   });
   emit({ type: 'move_made', moveType: res.move.type, at: Date.now() });
   if (status !== 'won') persist(get);

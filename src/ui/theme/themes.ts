@@ -25,6 +25,8 @@ export interface Theme {
     userValue: string;
     /** Conflicting / mistaken cell. */
     error: string;
+    /** Background tint for a mistaken cell. */
+    errorBg: string;
     /** Grid lines. */
     gridLine: string;
     gridLineBold: string;
@@ -48,6 +50,7 @@ const light: Theme = {
     selected: '#2F6BFF',
     userValue: '#2F6BFF',
     error: '#E5484D',
+    errorBg: '#FBE0E0',
     gridLine: '#D3D6DE',
     gridLineBold: '#6B7280',
     note: '#6B7280',
@@ -69,6 +72,7 @@ const dark: Theme = {
     selected: '#3B6FE0',
     userValue: '#7FA6FF',
     error: '#FF6B6E',
+    errorBg: '#3A2024',
     gridLine: '#2A2F3A',
     gridLineBold: '#4A515E',
     note: '#9AA1AD',
@@ -90,6 +94,7 @@ const forest: Theme = {
     selected: '#2E7D4F',
     userValue: '#2E7D4F',
     error: '#D9534F',
+    errorBg: '#F7DAD8',
     gridLine: '#CDD8CC',
     gridLineBold: '#5E6E60',
     note: '#586656',
@@ -111,11 +116,15 @@ const sunset: Theme = {
     selected: '#E8703A',
     userValue: '#D2562A',
     error: '#D9433D',
+    errorBg: '#F9D8CF',
     gridLine: '#F0D9CA',
     gridLineBold: '#A6705A',
     note: '#7A5E4D',
   },
 };
+
+/** Fast Mode accent — always blue, independent of the active theme palette. */
+export const FAST_MODE_ACCENT = '#2F6BFF';
 
 export const THEMES: Theme[] = [light, dark, forest, sunset];
 

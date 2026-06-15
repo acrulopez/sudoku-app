@@ -8,7 +8,7 @@
 
 import { allCandidates } from './candidates';
 import { cloneCell, withCell } from './board';
-import { isValidPlacement } from './rules';
+import { getPeers, isValidPlacement } from './rules';
 import type { Board, Cell, CellIndex, Digit, Move } from './types';
 
 export interface EngineResult {
@@ -23,28 +23,48 @@ function snapshot(board: Board, indices: CellIndex[]) {
 /**
  * Place (or clear) a definitive value. Placing the value already present clears
  * the cell. Placing a value clears that cell's notes. No-op on givens.
+ *
+ * When `removePeerNotes` is set, placing a value also strips that value from
+ * the pencil notes of its peers (those candidates are no longer possible). The
+ * whole thing is one reversible move so a single undo restores the peer notes.
  */
 export function placeValue(
   board: Board,
   index: CellIndex,
   value: Digit,
+  removePeerNotes = false,
 ): EngineResult | null {
   const cell = board[index];
   if (cell.given) return null;
 
-  const before = snapshot(board, [index]);
-  const nextCell: Cell =
-    cell.value === value
-      ? { value: null, given: false, notes: new Set() }
-      : { value, given: false, notes: new Set() };
+  const isClear = cell.value === value;
+  const nextCell: Cell = isClear
+    ? { value: null, given: false, notes: new Set() }
+    : { value, given: false, notes: new Set() };
 
   // No change (e.g. clearing an already-empty cell).
   if (cell.value === nextCell.value && cell.notes.size === nextCell.notes.size) {
     return null;
   }
 
-  const nextBoard = withCell(board, index, nextCell);
-  const after = snapshot(nextBoard, [index]);
+  // Peers that still pencil this value can no longer hold it once placed.
+  const peerCleanup =
+    removePeerNotes && !isClear
+      ? [...getPeers(index)].filter((p) => board[p].notes.has(value))
+      : [];
+
+  const affected = [index, ...peerCleanup];
+  const before = snapshot(board, affected);
+
+  const nextBoard = board.slice();
+  nextBoard[index] = nextCell;
+  for (const p of peerCleanup) {
+    const notes = new Set(nextBoard[p].notes);
+    notes.delete(value);
+    nextBoard[p] = { ...nextBoard[p], notes };
+  }
+
+  const after = snapshot(nextBoard, affected);
   return { board: nextBoard, move: { type: 'place', before, after } };
 }
 

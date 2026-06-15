@@ -10,12 +10,26 @@ interface Props {
   board: BoardModel;
   selectedIndex: CellIndex | null;
   activeValue: Digit | null;
+  mistakes: Set<CellIndex>;
+  /** In Fast Mode we don't focus a single cell — we light up the active digit
+   *  everywhere instead, so the selected-cell / peer tints are suppressed. */
+  fastMode: boolean;
+  /** Cells to blink red twice (conflict feedback). */
+  flashCells: { indices: CellIndex[]; nonce: number } | null;
   onCellPress: (index: CellIndex) => void;
 }
 
-export function Board({ board, selectedIndex, activeValue, onCellPress }: Props) {
+export function Board({
+  board,
+  selectedIndex,
+  activeValue,
+  mistakes,
+  fastMode,
+  flashCells,
+  onCellPress,
+}: Props) {
   const theme = useTheme();
-  const { peers, sameValue, conflicts } = useMemo(
+  const { peers, sameValue } = useMemo(
     () => computeHighlights(board, selectedIndex, activeValue),
     [board, selectedIndex, activeValue],
   );
@@ -26,15 +40,20 @@ export function Board({ board, selectedIndex, activeValue, onCellPress }: Props)
         <View key={row} style={styles.row}>
           {Array.from({ length: SIDE }).map((_, col) => {
             const index = row * SIDE + col;
+            const flashNonce =
+              flashCells && flashCells.indices.includes(index) ? flashCells.nonce : 0;
             return (
               <Cell
                 key={index}
                 cell={board[index]}
                 index={index}
-                selected={selectedIndex === index}
-                inPeer={selectedIndex !== index && peers.has(index)}
-                sameValue={selectedIndex !== index && sameValue.has(index)}
-                conflict={conflicts.has(index)}
+                selected={!fastMode && selectedIndex === index}
+                inPeer={!fastMode && selectedIndex !== index && peers.has(index)}
+                sameValue={sameValue.has(index) && (fastMode || selectedIndex !== index)}
+                activeValue={activeValue}
+                fastMode={fastMode}
+                mistake={mistakes.has(index)}
+                flashNonce={flashNonce}
                 onPress={onCellPress}
               />
             );

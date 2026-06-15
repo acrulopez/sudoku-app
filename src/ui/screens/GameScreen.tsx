@@ -1,13 +1,15 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { canUndo as historyCanUndo } from '../../domain/history';
 import { useGameStore } from '../../state/gameStore';
 import { useSettingsStore } from '../../state/settingsStore';
-import { remainingCounts } from '../../state/selectors';
+import { computeMistakes, remainingCounts } from '../../state/selectors';
 import { useGameTimer } from '../hooks/useGameTimer';
 import { useTheme } from '../theme/ThemeProvider';
+import { FAST_MODE_ACCENT } from '../theme/themes';
 import { Board } from '../components/Board/Board';
 import { Controls } from '../components/Controls/Controls';
 import { GameHeader } from '../components/Header/GameHeader';
@@ -22,6 +24,20 @@ export function GameScreen() {
 
   const s = useGameStore();
   const maxMistakes = useSettingsStore((st) => st.maxMistakes);
+
+  const mistakes = useMemo(
+    () => computeMistakes(s.board, s.puzzle?.solution ?? ''),
+    [s.board, s.puzzle],
+  );
+
+  // Vibrate when the mistake count climbs (a wrong value was just placed).
+  const prevMistakes = useRef(s.mistakes);
+  useEffect(() => {
+    if (s.mistakes > prevMistakes.current) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    }
+    prevMistakes.current = s.mistakes;
+  }, [s.mistakes]);
 
   if (!s.puzzle) {
     // No active game (e.g. deep link) — bounce home.
@@ -54,10 +70,8 @@ export function GameScreen() {
         maxMistakes={maxMistakes}
         elapsed={s.elapsed}
         paused={paused}
-        fastMode={s.fastMode}
         onBack={() => router.replace('/')}
         onTogglePause={() => s.setPaused(!paused)}
-        onToggleFastMode={s.toggleFastMode}
       />
 
       <View style={styles.boardWrap}>
@@ -73,6 +87,9 @@ export function GameScreen() {
             board={s.board}
             selectedIndex={s.selectedIndex}
             activeValue={activeValue}
+            mistakes={mistakes}
+            fastMode={s.fastMode}
+            flashCells={s.flashCells}
             onCellPress={s.selectCell}
           />
         )}
@@ -90,6 +107,21 @@ export function GameScreen() {
         )}
       </View>
 
+      <View style={styles.fastModeRow}>
+        <Text style={[styles.fastIcon, { color: s.fastMode ? FAST_MODE_ACCENT : c.textMuted }]}>
+          ⚡
+        </Text>
+        <View style={styles.switchScale}>
+          <Switch
+            value={s.fastMode}
+            onValueChange={s.toggleFastMode}
+            trackColor={{ true: FAST_MODE_ACCENT, false: c.gridLine }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor={c.gridLine}
+          />
+        </View>
+      </View>
+
       <View style={styles.bottom}>
         <Controls
           pencilMode={s.pencilMode}
@@ -99,8 +131,15 @@ export function GameScreen() {
           onFastPencil={s.fastPencil}
           onTogglePencil={s.togglePencil}
         />
-        <NumberPad remaining={remaining} activeDigit={s.selectedDigit} onPress={s.pressDigit} />
+        <NumberPad
+          remaining={remaining}
+          activeDigit={s.selectedDigit}
+          invalidFlash={s.invalidFlash}
+          onPress={s.pressDigit}
+        />
       </View>
+
+      <View style={styles.spacer} />
     </View>
   );
 }
@@ -133,5 +172,16 @@ const styles = StyleSheet.create({
   overlayText: { fontSize: 28, fontWeight: '800' },
   overlayBtn: { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },
   overlayBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  bottom: { marginTop: 'auto', paddingHorizontal: 8, paddingBottom: 8 },
+  fastModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 4,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  fastIcon: { fontSize: 15, fontWeight: '700' },
+  switchScale: { transform: [{ scale: 0.75 }] },
+  bottom: { paddingHorizontal: 8, paddingBottom: 8 },
+  spacer: { flex: 1 },
 });

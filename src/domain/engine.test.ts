@@ -92,6 +92,35 @@ describe('placeValue', () => {
     placeValue(b, 0, 7 as Digit);
     expect(b[0].value).toBeNull();
   });
+
+  it('strips the placed value from peer notes when removePeerNotes is set', () => {
+    let b: Board = createBoard(pad(''));
+    const peer = indexOf(0, 5); // same row as index 0
+    const other = indexOf(0, 6);
+    b = toggleNote(b, peer, 7 as Digit)!.board;
+    b = toggleNote(b, peer, 4 as Digit)!.board;
+    b = toggleNote(b, other, 4 as Digit)!.board;
+
+    const placed = placeValue(b, 0, 7 as Digit, true)!;
+    // 7 removed from the peer's notes, 4 (unrelated) kept; non-peer untouched.
+    expect(placed.board[peer].notes.has(7)).toBe(false);
+    expect(placed.board[peer].notes.has(4)).toBe(true);
+    expect(placed.board[other].notes.has(4)).toBe(true);
+
+    // One undo restores the peer note alongside the placed value.
+    let history = pushMove(createHistory(), placed.move);
+    const undone = undo(placed.board, history)!;
+    expect(undone.board[0].value).toBeNull();
+    expect(undone.board[peer].notes.has(7)).toBe(true);
+  });
+
+  it('leaves peer notes alone by default', () => {
+    let b: Board = createBoard(pad(''));
+    const peer = indexOf(0, 5);
+    b = toggleNote(b, peer, 7 as Digit)!.board;
+    const placed = placeValue(b, 0, 7 as Digit)!;
+    expect(placed.board[peer].notes.has(7)).toBe(true);
+  });
 });
 
 describe('toggleNote validation', () => {

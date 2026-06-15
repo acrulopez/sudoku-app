@@ -9,10 +9,8 @@ interface Props {
   maxMistakes: number;
   elapsed: number;
   paused: boolean;
-  fastMode: boolean;
   onBack: () => void;
   onTogglePause: () => void;
-  onToggleFastMode: () => void;
 }
 
 function formatTime(total: number): string {
@@ -35,10 +33,8 @@ export function GameHeader({
   maxMistakes,
   elapsed,
   paused,
-  fastMode,
   onBack,
   onTogglePause,
-  onToggleFastMode,
 }: Props) {
   const theme = useTheme();
   const c = theme.colors;
@@ -47,17 +43,6 @@ export function GameHeader({
       <View style={styles.topRow}>
         <Pressable onPress={onBack} hitSlop={10}>
           <Text style={[styles.back, { color: c.text }]}>←</Text>
-        </Pressable>
-        <Pressable
-          onPress={onToggleFastMode}
-          style={[
-            styles.fastToggle,
-            { backgroundColor: fastMode ? c.primary : c.highlight },
-          ]}
-        >
-          <Text style={{ color: fastMode ? '#FFF' : c.textMuted, fontWeight: '700' }}>
-            ⚡
-          </Text>
         </Pressable>
       </View>
       <View style={styles.statsRow}>
@@ -80,13 +65,6 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 16, paddingTop: 8, gap: 8 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   back: { fontSize: 26 },
-  fastToggle: {
-    width: 40,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stat: { fontSize: 15 },
   timer: { flexDirection: 'row', alignItems: 'center' },

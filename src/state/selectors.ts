@@ -26,7 +26,8 @@ export interface Highlights {
 
 /**
  * Cells to tint: peers of the selection, cells sharing the selected/active
- * value, and all conflicting cells.
+ * value, and all conflicting cells. (Matching pencil notes are emphasized per
+ * note digit in the Cell, not by tinting the whole cell.)
  */
 export function computeHighlights(
   board: Board,
@@ -47,4 +48,20 @@ export function computeHighlights(
   }
 
   return { peers, sameValue, conflicts: getConflicts(board) };
+}
+
+/**
+ * Cells whose user-entered value disagrees with the puzzle solution. Distinct
+ * from peer conflicts: a wrong value can be unique among its peers yet still be
+ * a mistake. Returns an empty set when the solution is unknown (resumed games).
+ */
+export function computeMistakes(board: Board, solution: string): Set<CellIndex> {
+  const mistakes = new Set<CellIndex>();
+  if (!solution) return mistakes;
+  board.forEach((cell, i) => {
+    if (cell.value !== null && !cell.given && solution[i] !== String(cell.value)) {
+      mistakes.add(i);
+    }
+  });
+  return mistakes;
 }
