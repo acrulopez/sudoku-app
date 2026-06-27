@@ -5,3 +5,4 @@
 - Functionality to create sudokus ad-hoc
 - Use impeccable to improve UI
 - Check sudoku app for new features (In settings)
+- CI/CD for releases via EAS Workflows. After shipping v1.0 manually, add `.eas/workflows/publish-ios.yml` (+ Android twin) chaining `build` -> `submit` jobs, triggered on push to a release branch. Free tier (~60 CI/CD min/mo + 15 iOS/15 Android builds/mo) is enough. Requires: GitHub repo linked to EAS project, `ascAppId` in eas.json. Note: pipeline uploads the build to App Store Connect automatically, but the final "Submit for Review"/release stays a manual button in the console.
