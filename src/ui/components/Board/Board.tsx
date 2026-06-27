@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { PixelRatio, StyleSheet, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { SIDE } from '../../../domain/board';
 import type { Board as BoardModel, CellIndex, Digit } from '../../../domain/types';
@@ -49,10 +49,19 @@ export function Board({
   const hinting = hintAnnotations !== undefined;
   const [boardSize, setBoardSize] = useState(0);
   const onLayout = (e: LayoutChangeEvent) => setBoardSize(e.nativeEvent.layout.width);
+  // Snap to an integer, device-pixel-aligned cell size so every row shares the
+  // exact same column boundaries (avoids per-row sub-pixel rounding drift that
+  // makes the 3x3 separators zigzag).
+  const cellSize = boardSize > 0 ? PixelRatio.roundToNearestPixel(boardSize / 9) : 0;
+  const gridSize = cellSize * 9;
 
   return (
     <View
-      style={[styles.grid, { borderColor: theme.colors.gridLineBold }]}
+      style={[
+        styles.grid,
+        { borderColor: theme.colors.gridLineBold },
+        cellSize > 0 && { width: gridSize, height: gridSize },
+      ]}
       onLayout={onLayout}
     >
       {Array.from({ length: SIDE }).map((_, row) => (
@@ -75,20 +84,21 @@ export function Board({
                 flashNonce={hinting ? 0 : flashNonce}
                 reduceMotion={reduceMotion}
                 annotation={hintAnnotations?.[index]}
+                cellSize={cellSize}
                 onPress={onCellPress}
               />
             );
           })}
         </View>
       ))}
-      {chainLinks && chainLinks.length > 0 && boardSize > 0 && (
-        <ChainOverlay links={chainLinks} size={boardSize} color={theme.colors.error} />
+      {chainLinks && chainLinks.length > 0 && cellSize > 0 && (
+        <ChainOverlay links={chainLinks} size={gridSize} color={theme.colors.error} />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: { width: '100%', aspectRatio: 1 },
+  grid: { width: '100%', aspectRatio: 1, alignSelf: 'center' },
   row: { flexDirection: 'row', flex: 1 },
 });

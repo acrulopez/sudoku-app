@@ -30,6 +30,9 @@ interface Props {
   reduceMotion: boolean;
   /** Smart Hint annotation: tint / "×" mark / ghost answer for this cell. */
   annotation?: CellAnnotation;
+  /** Fixed cell pixel size from the measured board (0 before first layout —
+   *  falls back to flex so the first frame still renders). */
+  cellSize: number;
   onPress: (index: CellIndex) => void;
 }
 
@@ -45,6 +48,7 @@ function CellComponent({
   flashNonce,
   reduceMotion,
   annotation,
+  cellSize,
   onPress,
 }: Props) {
   const theme = useTheme();
@@ -104,10 +108,14 @@ function CellComponent({
 
   const a11yLabel = buildLabel(r, col, cell, mistake);
 
+  // Fixed integer size keeps columns aligned across rows; flex is only the
+  // first-frame fallback before the board has been measured.
+  const sizeStyle = cellSize > 0 ? { width: cellSize, height: cellSize } : styles.cellFlex;
+
   return (
     <Pressable
       onPress={() => onPress(index)}
-      style={[styles.cell, { backgroundColor: background }, borderStyle]}
+      style={[styles.cell, sizeStyle, { backgroundColor: background }, borderStyle]}
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityState={{ selected, disabled: cell.given }}
@@ -189,10 +197,12 @@ function buildLabel(r: number, col: number, cell: CellModel, mistake: boolean): 
 
 const styles = StyleSheet.create({
   cell: {
-    flex: 1,
-    aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cellFlex: {
+    flex: 1,
+    aspectRatio: 1,
   },
   // Right triangle hugging the top-left corner — a shape/position cue for a
   // mistake that does not depend on color.
